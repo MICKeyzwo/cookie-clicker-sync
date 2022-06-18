@@ -31,6 +31,7 @@ interface PostSaveDataResponse {
   'use strict';
 
   const apiUrl = '';
+  const loadSucceededTimeKey = 'CookieClickerSyncLoadingSucceededAt';
 
   const saveNoteKey = [
     'saved',
@@ -67,14 +68,16 @@ interface PostSaveDataResponse {
     });
   }
 
-  setInterval(() => {
-    const saveNoteMessage = document.getElementById('notes')!.innerHTML;
-    const saveNoteDisplaying = saveNoteKey.some(k => saveNoteMessage.includes(k));
-    if (!saveNoteDisplayed && saveNoteDisplaying) {
-      onSaveNotePoped();
-    }
-    saveNoteDisplayed = saveNoteDisplaying;
-  }, 500);
+  function setAutoSave() {
+    setInterval(() => {
+      const saveNoteMessage = document.getElementById('notes')!.innerHTML;
+      const saveNoteDisplaying = saveNoteKey.some(k => saveNoteMessage.includes(k));
+      if (!saveNoteDisplayed && saveNoteDisplaying) {
+        onSaveNotePoped();
+      }
+      saveNoteDisplayed = saveNoteDisplaying;
+    }, 500);
+  }
 
   async function onSaveNotePoped() {
     const localSaveData = localStorage.getItem(saveDataKey);
@@ -95,7 +98,7 @@ interface PostSaveDataResponse {
     }
   }
 
-  async function loadOnPageOpen() {
+  async function loadRemoteSaveData() {
     const localSaveData = localStorage.getItem(saveDataKey);
     try {
       const json = await fetchJsonp<CookieClickerSaveData>(apiUrl, {
@@ -104,6 +107,7 @@ interface PostSaveDataResponse {
       const remoteSaveData = json[saveDataKey];
       if (remoteSaveData && localSaveData !== remoteSaveData) {
         localStorage.setItem(saveDataKey, remoteSaveData);
+        localStorage.setItem(loadSucceededTimeKey, Date.now().toString());
         window.location.reload();
       }
     } catch (e) {
@@ -111,5 +115,14 @@ interface PostSaveDataResponse {
     }
   }
 
-  loadOnPageOpen()
+  function onScriptLoaded() {
+    const loadedAt = parseInt(localStorage.getItem(loadSucceededTimeKey) ?? '0');
+    if (Date.now() - loadedAt <= 1000) {
+      setAutoSave();
+    } else {
+      loadRemoteSaveData();
+    }
+  }
+
+  onScriptLoaded();
 })();
